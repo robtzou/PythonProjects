@@ -5,6 +5,57 @@ from haversine import haversine
 from vincenty import vincenty
 import sys
 
+class Cities:
+    """A collection of data about cities around the world.
+    
+    Can find cities near a specified point with a population greater than or
+    equal to some specified value.
+    
+    Attributes:
+        cities (list of dict): information about cities. Each dictionary in the 
+        list has the following keys:
+        * "name" (str): the name of the city
+        * "lat" (float): the latitiude of the city
+        * "lon (float): the longitude of the city
+        * "pop" (int): the population of the city
+    """
+
+    def __init__ (self, filepath):
+        """ Read city data from 'filepath' and populate the attribute 'cities'
+        
+        Args:
+            filepath (str): a path to a file containing city data. Each line in the 
+            file consists of the following values, seperated by tabs:
+            the city name, the latitude of the city, the longitude of the city, and 
+            the population of the city.
+            
+        Side effects:
+            Create and populate the attribute 'cities'
+        """
+        self.cities = []
+        with open(filepath, 'r', encoding='utf-8') as f:
+            for line in f:
+                name, lat, lon, pop = line.strip().split("\t")
+                self.cities.append({"name": name, "lat": float(lat), "lon": float(lon),"pop": int(pop)}) 
+            
+    def nearest(self, lat, lon, min_population=0, n=10):
+        """Calculates the distance between two cities.
+
+        Args:
+            "lat" (float): latitude of a location
+            "lon" (float): longitude of a location
+            min_population (int): The minimum required population of the search.
+            Defaults to 0.
+            n (int): . Defaults to 10.
+
+        Returns:
+            _type_: _description_
+        """
+        cities = sorted(
+    self.cities, key=lambda c: get_dist((lat, lon), (c["lat"], c["lon"]))
+    )
+        return [c for c in cities if c["pop"] >= min_population][:n]
+    
 def get_dist(p1, p2, miles=False):
     """Calculate the distance between two latitude/longitude coordinates.
     
@@ -26,87 +77,6 @@ def get_dist(p1, p2, miles=False):
         dist = haversine(p1, p2, unit='mi' if miles else 'km')
     return dist
 
-
-def main(filepath, lat, lon, min_population=0, n=10):
-    """Find the closest cities to the specified coordinate, using data from the
-    specified file.
-    
-    Args:
-        filepath (str): path to file containing city data. File should be a
-            tab-delimited text file with columns for name (as a string),
-            latitude (as a float), longitude (as a float), and population
-            (as an int).
-        lat (float): latitude of reference point.
-        lon (float): longitude of reference point.
-        min_population (int): ignore cities with a population smaller than this.
-            (Default: 0)
-        n (int): return this many results. (Default: 10)
-    
-    Side effects:
-        Prints results to stdout.
-    """
-    cities = Cities(filepath)
-    nearest = cities.nearest(lat, lon, min_population=min_population, n=n)
-    city_width = len(max(nearest, key=lambda c: len(c["name"]))["name"])
-    for c in nearest:
-        print(f"{c['name'].ljust(city_width)}"
-              f" ({c['lat']:-10.5f}, {c['lon']:-10.5f}),"
-              f" population {c['pop']:-10,d};"
-              f" {get_dist((lat, lon), (c['lat'], c['lon']), miles=True):-8.2f}"
-              f" miles")
-
-
-class Cities:
-    """A collection of data about cities around the world.
-    
-    Can find cities near a specified point with a population greater than or
-    equal to some specified value.
-    
-    Attributes:
-        cities (list of dict): information about cities. Each dictionary in the 
-        list has the following keys:
-        * "name" (str): the name of the city
-        * "lat" (float): the latitiude of the city
-        * "lon (float): the longitude of the city
-        * "pop" (int): the population of the city
-    """
-
-    def __init__ (self, filepath):
-        """ Read city data from 'filepath' and populate the attribute 'cities'
-        
-        Args:
-            filepath (str): a ath to a file containing city data. Each line in the 
-            file consists of the following values, seperated by tabs:
-            the city name, the latitude of the city, the longitude of the city, and 
-            the population of the city.
-            
-        Side effects:
-            Create and populate the attribute 'cities'
-        """
-        self.cities = []
-        with open(filepath, 'r', encoding='utf-8') as f:
-            for line in f:
-                name, lat, lon, pop = line.strip().split("\t")
-                self.cities.append({"name": name, "lat": float(lat), "lon": float(lon),"pop": int(pop)}) 
-            
-    def nearest(self, lat, lon, min_population=0, n=10):
-        """Calculates the distance between two cities.
-
-        Args:
-            lat (float): latitude of a location
-            lon (float): longitude of a location
-            min_population (int): The minimum required population of the search.
-            Defaults to 0.
-            n (int): . Defaults to 10.
-
-        Returns:
-            _type_: _description_
-        """
-        cities = sorted(
-            self.cities, key=lambda c: self.get_dist((lat, lon), c["lat"], c["lon"])
-        )
-        return [c for c in cities if c["pop"] >= min_population][:n]
-        
 
 def parse_args(arglist):
     """ Parse command-line arguments.
@@ -138,6 +108,33 @@ def parse_args(arglist):
                         help="return at most this many results")
     return parser.parse_args(arglist)
 
+def main(filepath, lat, lon, min_population=0, n=10):
+    """Find the closest cities to the specified coordinate, using data from the
+    specified file.
+    
+    Args:
+        filepath (str): path to file containing city data. File should be a
+            tab-delimited text file with columns for name (as a string),
+            latitude (as a float), longitude (as a float), and population
+            (as an int).
+        lat (float): latitude of reference point.
+        lon (float): longitude of reference point.
+        min_population (int): ignore cities with a population smaller than this.
+            (Default: 0)
+        n (int): return this many results. (Default: 10)
+    
+    Side effects:
+        Prints results to stdout.
+    """
+    cities = Cities(filepath)
+    nearest = cities.nearest(lat, lon, min_population=min_population, n=n)
+    city_width = len(max(nearest, key=lambda c: len(c["name"]))["name"])
+    for c in nearest:
+        print(f"{c['name'].ljust(city_width)}"
+              f" ({c['lat']:-10.5f}, {c['lon']:-10.5f}),"
+              f" population {c['pop']:-10,d};"
+              f" {get_dist((lat, lon), (c['lat'], c['lon']), miles=True):-8.2f}"
+              f" miles")
 
 if __name__ == "__main__":
     args = parse_args(sys.argv[1:])
